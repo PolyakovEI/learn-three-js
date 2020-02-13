@@ -1,7 +1,6 @@
 import "./style.css";
-import * as THREE from "three";
 import { WEBGL } from "three/examples/jsm/WebGL.js";
-import { LoopOnce } from "three";
+import { Scene, Fog, PerspectiveCamera, WebGLRenderer, HemisphereLight, DirectionalLight } from "three";
 
 var Colors = {
   red: 0xf25346,
@@ -12,15 +11,15 @@ var Colors = {
   blue: 0x68c3c0,
 };
 
-var scene;
-var camera;
-var fieldOfView;
-var aspectRatio;
-var nearPlane;
-var farPlane;
-var HEIGHT;
-var WIDTH;
-var renderer;
+var scene: Scene;
+var camera: PerspectiveCamera;
+var fieldOfView: number;
+var aspectRatio: number;
+var nearPlane: number;
+var farPlane: number;
+var HEIGHT: number;
+var WIDTH: number;
+var renderer: WebGLRenderer;
 var container;
 
 var hemisphereLight;
@@ -37,38 +36,40 @@ if (WEBGL.isWebGL2Available() === false) {
 
     createLights();
 
-    createPlane();
-    createSea();
-    createSky();
+    // createPlane();
+    // createSea();
+    // createSky();
 
-    loop();
+    // loop();
   }
 
   function createScene() {
     HEIGHT = window.innerHeight;
     WIDTH = window.innerWidth;
 
-    scene = new THREE.Scene();
+    scene = new Scene();
     // добавляем на сцену эффект тумана с цветом, как и цвет фона
-    scene.fog = new THREE.Fog(0xf7d9aa, 100, 950);
+    scene.fog = new Fog(0xf7d9aa, 100, 950);
 
     aspectRatio = WIDTH / HEIGHT;
     fieldOfView = 60;
     nearPlane = 1;
     farPlane = 10000;
-    camera = new THREE.PerspectiveCamera(fieldOfView, aspectRatio, nearPlane, farPlane);
+    camera = new PerspectiveCamera(fieldOfView, aspectRatio, nearPlane, farPlane);
 
     camera.position.x = 0;
     camera.position.z = 200;
     camera.position.y = 100;
 
     const canvas = document.createElement("canvas");
-    const context = canvas.getContext("webgl2", {
+    // без этого каста ts ругается на несовпадение типов в WebGLRenderer
+    // наверное ThreeJS-овцы не добавили этот тип для context
+    const context = <WebGLRenderingContext> canvas.getContext("webgl2", {
       alpha: true,
       antialias: true,
     });
 
-    renderer = new THREE.WebGLRenderer({ canvas, context });
+    renderer = new WebGLRenderer({ canvas, context });
 
     renderer.setSize(WIDTH, HEIGHT);
 
@@ -86,9 +87,9 @@ if (WEBGL.isWebGL2Available() === false) {
   }
 
   function createLights() {
-    hemisphereLight = new THREE.HemisphereLight(0xaaaaa, 0x000000, 0.9);
+    hemisphereLight = new HemisphereLight(0xaaaaa, 0x000000, 0.9);
 
-    shadowLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    shadowLight = new DirectionalLight(0xffffff, 0.9);
 
     shadowLight.position.set(150, 350, 350);
 
