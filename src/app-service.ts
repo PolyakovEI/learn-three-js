@@ -4,9 +4,9 @@ export abstract class AppService {
 
   constructor() {
     App.$initiallize.subscribe({
-      next: () => this.onInit()
+      next: app => this.onInit(app)
     });
   }
 
-  protected onInit(): void {};
+  protected onInit(instance: App): void {};
 } 

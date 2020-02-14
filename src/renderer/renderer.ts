@@ -3,6 +3,7 @@ import { AppService } from "../app-service";
 import { Scene, WebGLRenderer, Fog } from "three";
 
 import { fromEvent, Observable } from "rxjs";
+import { App } from "../app";
 import { app } from "../main";
 
 export class RendererService extends AppService {
@@ -34,7 +35,7 @@ export class RendererService extends AppService {
 
   }
   
-  protected onInit() {
+  protected onInit(instance: App) {
     this.canvas = document.createElement('canvas');
 
     this.context = <WebGLRenderingContext>this.canvas.getContext("webgl2", {
