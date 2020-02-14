@@ -6,13 +6,13 @@ const HtmlShaderPlugin = require('html-shader-plugin');
 
 module.exports = {
   mode: "development",
-  entry: {
-    app: "./src/index.ts",
-    print: "./src/print.js",
-  },
+  entry: path.join(__dirname, "src/main.ts") ,
   devtool: "inline-source-map",
   devServer: {
     contentBase: "./dist",
+  },
+  resolve: {
+    extensions: ['.ts', '.js', '.json'],
   },
   optimization: {
     splitChunks: {
@@ -27,7 +27,7 @@ module.exports = {
     },
   },
   plugins: [
-    // new CleanWebpackPlugin(),
+    new CleanWebpackPlugin(),
     new MiniCssExtractPlugin(
       {
         filename: '[name].css',
