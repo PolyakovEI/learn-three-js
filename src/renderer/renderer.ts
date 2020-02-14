@@ -68,6 +68,7 @@ export class RendererService extends AppService {
 
   private _render() {
     this.renderer.render(this.scene, app.camera.main);
+    app.keyboard.emmitPressed();
     requestAnimationFrame(() => this._render());
   }
 
