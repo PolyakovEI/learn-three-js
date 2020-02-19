@@ -4,21 +4,28 @@ import { Observable, fromEvent, Subject } from "rxjs";
 import { AppService } from "../app-service";
 import { App } from "../app";
 import { KeyObservableTypes } from "./keyboard";
+import { app } from "../main";
 
 export class MouseService extends AppService {
 
-    public x: number = 0;
+    world = {
+        x: 0,
+        y: 0,
+        px: 0,
+        py: 0,
+        vx: 0,
+        vy: 0,
+    };
 
-    public y: number = 0;
-
-    public px: number = 0;
-
-    public py: number = 0;
-
-    public vx: number = 0;
-
-    public vy: number = 0;
-
+    screen = {
+        x: 0,
+        y: 0,
+        px: 0,
+        py: 0,
+        vx: 0,
+        vy: 0,
+    }
+    
     public move: Observable<MouseEvent>;
 
     public scroll: {
@@ -114,12 +121,24 @@ export class MouseService extends AppService {
      * @param event - событие движения мыши
      */
     private _updatePosition(event: MouseEvent) {
-        this.px = this.x;
-        this.py = this.y;
-        this.x = event.x;
-        this.y = event.y;
-        this.vx = this.x - this.vx;
-        this.vy = this.y - this.vy;
+        this.screen.px = this.screen.x;
+        this.screen.py = this.screen.py;
+
+        this.screen.x = event.x;
+        this.screen.y = event.y;
+
+        this.screen.vx = this.screen.x - this.screen.px;
+        this.screen.vy = this.screen.y - this.screen.py;
+
+        
+        this.world.px = this.world.x;
+        this.world.py = this.world.y;
+        
+        this.world.x = event.x * app.camera.width / app.renderer.width - app.camera.width / 2 + app.camera.main.position.x;
+        this.world.y = -(event.y * app.camera.height / app.renderer.height - app.camera.height / 2) + app.camera.main.position.y;
+
+        this.world.vx = this.world.x - this.world.px;
+        this.world.vy = this.world.y - this.world.py;
     }
 
 }
