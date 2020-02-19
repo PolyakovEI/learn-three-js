@@ -7,10 +7,10 @@ import { App } from '../app';
 /**
  * Объект события клавиши
  */
-export interface KeyObservableTypes {
-    up: Observable<KeyboardEvent>;
-    down: Observable<KeyboardEvent>;
-    pressed: Observable<KeyboardEvent>;
+export interface KeyObservableTypes<Event = KeyboardEvent> {
+    up: Observable<Event>;
+    down: Observable<Event>;
+    pressed: Observable<Event>;
 }
 
 export type KeyObservables = {
@@ -109,7 +109,7 @@ export class KeyboardService extends AppService {
     /**
      * Метод рассылки событий уже нажатых клавиш подписчикам на pressed клавиши
      */
-    public emmitPressed() {
+    public sync() {
         this._iteration = !this._iteration;
         this._pressedKeyEvents.forEach(event => this._$pressed.next(event));
     }

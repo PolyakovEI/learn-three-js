@@ -37,6 +37,7 @@ export class RendererService extends AppService {
   
   protected onInit(instance: App) {
     this.canvas = document.createElement('canvas');
+    this.canvas.oncontextmenu = () => false;
 
     this.context = <WebGLRenderingContext>this.canvas.getContext("webgl2", {
       alpha: true,
@@ -68,7 +69,8 @@ export class RendererService extends AppService {
 
   private _render() {
     this.renderer.render(this.scene, app.camera.main);
-    app.keyboard.emmitPressed();
+    app.keyboard.sync();
+    app.mouse.sync();
     requestAnimationFrame(() => this._render());
   }
 
