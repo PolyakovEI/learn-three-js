@@ -1,40 +1,44 @@
-import { AppService } from "../app-service";
-
-import { Scene, WebGLRenderer, Fog } from "three";
-
+import { WebGLRenderer } from "three";
 import { fromEvent, Observable } from "rxjs";
+
+import { AppService } from "../app-service";
 import { App } from "../app";
 import { app } from "../main";
 
+/**
+ * Сервис для оранизации цикла отрисовка, а также управления основными элементами WebGL
+ */
 export class RendererService extends AppService {
-
-  scene: Scene;
-
+  /**
+   * DOM элемент для отрисовки
+   * Холст
+   */
   canvas: HTMLCanvasElement;
 
+  /**
+   * Контекст рисования WebGL
+   * На самоме деле здесь хранится WebGL2RenderingContext
+   * Кисточка и палитра
+   */
+  context: WebGLRenderingContext;
+  
+  /**
+   * ThreeJS renderer
+   * Художник
+   */
   renderer: WebGLRenderer;
 
-  //  на самоме деле здесь хранится WebGL2RenderingContext
-  context: WebGLRenderingContext;
-
+  /** Событие изменения размера холста */
   $onResize = new Observable<UIEvent>();
 
-  get width(): number {
-    return this.canvas.offsetWidth;
+  /** Проверка того, что цикл отрисовки запущен */
+  get isOn(): boolean {
+    return this._renderFrameId !== null;
   }
 
-  set width(value: number) {
+  /** Id запроса на отрисовку */
+  private _renderFrameId: number = null;
 
-  }
-
-  get height(): number {
-    return this.canvas.offsetHeight;
-  }
-
-  set height(value: number) {
-
-  }
-  
   protected onInit(instance: App) {
     this.canvas = document.createElement('canvas');
     this.canvas.oncontextmenu = () => false;
@@ -50,9 +54,7 @@ export class RendererService extends AppService {
     this.renderer.setSize(initiallizeWidth, initiallizeHeight);
     this.renderer.shadowMap.enabled = true;
 
-    this.scene = new Scene();
-    // добавляем на сцену эффект тумана с цветом, как и цвет фона
-    this.scene.fog = new Fog(0xf7d9aa, 100, 950);
+    
 
     document.body.appendChild(this.renderer.domElement);
     this.$onResize = fromEvent<UIEvent>(window, 'resize');
@@ -61,19 +63,34 @@ export class RendererService extends AppService {
     });
   }
 
-  private _onResize() {
-    this.renderer.setSize(this.width, this.height);
+  /**
+   * Метод для запуска цикла отрисовки
+   */
+  start() {
+    this._renderFrameId = requestAnimationFrame(() => this._render());
   }
 
-  public startRender() {
-    requestAnimationFrame(() => this._render());
+  /**
+   * Метод для остановки цикла отрисовки
+   */
+  stop() {
+    cancelAnimationFrame(this._renderFrameId);
+    this._renderFrameId = null;
   }
 
+  /**
+   * Главный метод для отрисовки кадра, вызывается каждый раз при возможности
+   */
   private _render() {
-    this.renderer.render(this.scene, app.camera.main);
-    app.keyboard.sync();
-    app.mouse.sync();
-    requestAnimationFrame(() => this._render());
+    this._renderFrameId = requestAnimationFrame(() => this._render());
+
+    this.renderer.render(app.world.scene, app.camera.main);
   }
 
+  /**
+   * Метод обработки размера холста
+   */
+  private _onResize() {
+    this.renderer.setSize(this.canvas.offsetWidth, this.canvas.offsetHeight);
+  }
 }

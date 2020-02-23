@@ -6,9 +6,11 @@ import { App } from "../app";
 import { KeyObservableTypes } from "./keyboard";
 import { app } from "../main";
 import { Vector3, Vector2, Camera } from "three";
+import { QueuePriority } from "../physics/physics";
 
 /**
  * Событие мыши в приложении
+ * @TODO сделать pressed как в keyboard контроллере!
  */
 class AppMouseEvent {
     /** Координаты мыши в рамках canvas */
@@ -55,9 +57,10 @@ class AppMouseEvent {
  * @TODO сделать нормальный каст!
  */
 export function castOrtho(coords: Vector2, camera: Camera): Vector3 {
-    const cameraRift = new Vector2(app.camera.width / 2, app.camera.height / 2);
-    const wx = coords.x * app.camera.width / app.renderer.width - cameraRift.x + app.camera.main.position.x;
-    const wy = -(coords.y * app.camera.height / app.renderer.height - cameraRift.y) + app.camera.main.position.y;
+    const cameraSize = new Vector2(app.camera.main.right - app.camera.main.left, app.camera.main.top - app.camera.main.bottom);
+    const cameraRift = new Vector2(cameraSize.x / 2, cameraSize.y / 2);
+    const wx = coords.x * cameraSize.x / app.renderer.canvas.offsetWidth - cameraRift.x + app.camera.main.position.x;
+    const wy = -(coords.y * cameraSize.y / app.renderer.canvas.offsetHeight - cameraRift.y) + app.camera.main.position.y;
     return new Vector3(wx, wy, app.camera.main.position.z);
 }
 
@@ -95,7 +98,7 @@ export class MouseService extends AppService {
         this.move = combineLatest([
             <Observable<MouseEvent>> fromEvent(instance.renderer.canvas, 'mousemove'),
             // при изменении масштаба камеры указатель мыши оказывается в другом месте в мире
-            instance.camera.$scale
+            instance.camera.$onScale
         ])
         .pipe(
             map(([event]) => new AppMouseEvent(event)),
@@ -160,12 +163,9 @@ export class MouseService extends AppService {
                 pressed: this._$pressed.pipe(map(event => new AppMouseEvent(event))),
             }
         }
-    }
 
-    /**
-     * Метод рассылки событий уже нажатых клавиш подписчикам на pressed клавиши
-     */
-    public sync() {
-        this._pressedKeyEvents.forEach(event => this._$pressed.next(event));
+        instance.physics.addToQueue(() => {
+            this._pressedKeyEvents.forEach(event => this._$pressed.next(event));
+        }, QueuePriority.system);
     }
 }

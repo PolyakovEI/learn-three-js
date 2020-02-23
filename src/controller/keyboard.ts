@@ -1,21 +1,27 @@
-import { Observable, fromEvent, EMPTY, Subject } from 'rxjs';
-import { filter, tap, share } from 'rxjs/operators';
+import { Observable, fromEvent, Subject, from } from 'rxjs';
+import { filter, tap, share, map, concatMap } from 'rxjs/operators';
 
 import { AppService } from '../app-service';
 import { App } from '../app';
+import { QueuePriority } from '../physics/physics';
 
 /**
  * Объект события клавиши
  */
-export interface KeyObservableTypes<Event = KeyboardEvent> {
-    up: Observable<Event>;
-    down: Observable<Event>;
-    pressed: Observable<Event>;
+export interface KeyObservableTypes<ObservableType = KeyboardEvent> {
+    up?: Observable<ObservableType>;
+    down: Observable<ObservableType>;
+    pressed: Observable<ObservableType>;
+}
+
+interface KeyMap {
+  [key: string]: KeyboardEvent
 }
 
 export type KeyObservables = {
-  all: KeyObservableTypes;
-  combination(...keys: string[]): KeyObservableTypes;
+  any: KeyObservableTypes;
+  anyOff(...keys: string[]): KeyObservableTypes<KeyMap>;
+  combination(...keys: string[]): KeyObservableTypes<KeyMap>;
 } & {
   [key in string]: KeyObservableTypes;
 };
@@ -28,17 +34,14 @@ export class KeyboardService extends AppService {
     private _$down: Observable<KeyboardEvent>;
 
     /** Observable на press KeyboardEvent нажатие клавишь в приложении */
-    private _$pressed: Subject<KeyboardEvent>;
+    private _$pressed: Subject<KeyMap>;
 
     /** Массив уже нажатых клавишь */
-    private _pressedKeyEvents: Map<KeyboardEvent['key'], KeyboardEvent> = new Map();
+    private _pressedKeyEvents: KeyMap = {};
 
-    /**
-     * Комбинация зажатых клавишь проверяется для каждой клавиши в одну итерацию. Таким образом за одну итерацию
-     * обработка срабатывает столько раз, сколько клавишь в комбинации. Чтобы предотвратить это использую lock объект,
-     * который обновляется в начале каждой итерации
-     */
-    public _iteration: boolean;
+    public get pressedKeys() {
+      return Object.keys(this._pressedKeyEvents);
+    };
 
     /**
      * Объект observable на нажатие клавиш в приложении
@@ -49,52 +52,63 @@ export class KeyboardService extends AppService {
      */
     public keys: KeyObservables;
 
-    public onInit(instance: App): void {
+    protected onInit(instance: App): void {
         // создание слушателей событий нажатий на клавиши
         this._$down = (fromEvent(window, 'keydown') as Observable<KeyboardEvent>).pipe(
-            filter(event => !this._pressedKeyEvents.has(event.key)),
-            tap(event => this._pressedKeyEvents.set(event.key, event)),
+            filter(event => !this._pressedKeyEvents[event.key]),
+            tap(event => this._pressedKeyEvents[event.key] = event),
             share()
         );
         this._$up = (fromEvent(window, 'keyup') as Observable<KeyboardEvent>).pipe(
-            tap(event => this._pressedKeyEvents.delete(event.key)),
+            tap(event => delete this._pressedKeyEvents[event.key]),
             share()
         );
         this._$pressed = new Subject();
 
         const keysObservables = {
-          all: {
+          any: <KeyObservableTypes> {
             up: this._$up,
             down: this._$down,
-            pressed: this._$pressed,
-          } as KeyObservableTypes,
-          combination: (...combination: string[]) => {
-            let iteration: boolean = false;
-            return {
-              up: this._$up.pipe(filter(event => {
-                return combination.every(key => this._pressedKeyEvents.has(key) || event.key === key);
-              })),
-              down: this._$down.pipe(filter(_ => {
-                return combination.every(key => this._pressedKeyEvents.has(key));
-              })),
-              pressed: this._$pressed.pipe(filter(_ => {
-                if (iteration !== this._iteration && combination.every(key => this._pressedKeyEvents.has(key))) {
-                  iteration = this._iteration;
-                  return true;
-                }
-              })),
-            } as KeyObservableTypes;
-          }
+            pressed: this._$pressed.pipe(
+              concatMap(events => from(Object.values(events)))
+            ),
+          },
+          anyOff: ((...keys: string[]): KeyObservableTypes<KeyMap> => ({
+            up: this._$up.pipe(
+              filter(event => keys.includes(event.key)),
+              map(event => ({ [event.key]: event }))
+            ),
+            down: this._$down.pipe(
+              filter(event => keys.includes(event.key)),
+              map(event => ({ [event.key]: event }))
+            ),
+            pressed: this._$pressed.pipe(
+              filter(events => keys.some(key => events[key])),
+            ),
+          })),
+          combination: ((...combination: string[]): KeyObservableTypes<KeyMap> => ({
+            down: this._$down.pipe(
+              filter(_ => combination.every(key => this._pressedKeyEvents[key])),
+              map(_ => ({ ...this._pressedKeyEvents })),
+            ),
+            pressed: this._$pressed.pipe(
+              filter(_ => combination.every(key => this._pressedKeyEvents[key])),
+            ),
+          }))
         } as KeyObservables;
 
         // создается заготовка под будущий обьект
         this.keys = new Proxy(keysObservables, {
-          get: (keys, key: string) => {
+          get: (keys: KeyObservables, key: string) => {
             if (!(key in keys) && key.match(/^\w$/)) {
+              // @TODO удаление этого свойства при отписке
               keys[key] = {
-                up: this._$up.pipe(filter((event: KeyboardEvent) => event.key === key)),
-                down: this._$down.pipe(filter((event: KeyboardEvent) => event.key === key)),
-                pressed: this._$pressed.pipe(filter((event: KeyboardEvent) => event.key === key)),
+                up: this._$up.pipe(filter(event => event.key === key)),
+                down: this._$down.pipe(filter(event => event.key === key)),
+                pressed: this._$pressed.pipe(
+                  filter(events => Boolean(events[key])),
+                  map(events => events[key])
+                ),
               };
             }
             return keys[key];
@@ -104,13 +118,13 @@ export class KeyboardService extends AppService {
         // подписываемся на up и down, чтобы приложение сразу стало записывать клавиши в _pressedKeys
         this._$up.subscribe();
         this._$down.subscribe();
+
+        instance.physics.addToQueue(() => {
+          this._$pressed.next(this._pressedKeyEvents)
+        }, QueuePriority.system);
     }
 
-    /**
-     * Метод рассылки событий уже нажатых клавиш подписчикам на pressed клавиши
-     */
-    public sync() {
-        this._iteration = !this._iteration;
-        this._pressedKeyEvents.forEach(event => this._$pressed.next(event));
+    public isPressed(key: string): boolean {
+      return Boolean(this._pressedKeyEvents[key]);
     }
 }
