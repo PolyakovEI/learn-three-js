@@ -1,21 +1,43 @@
 import { AppService } from "./app-service";
 import { OrthographicCamera } from "three";
 import { App } from "./app";
+import { Observable, BehaviorSubject } from "rxjs";
 
 export class CameraService extends AppService {
   main: OrthographicCamera;
 
   // соотношение размера пиксиля к единице пространства в мире
-  private _scale: number = 1;
+  private _$scale: BehaviorSubject<number> = new BehaviorSubject(1);
+
+  $scale: Observable<number> = this._$scale.asObservable();
+
+  get scale() {
+    return this._$scale.getValue();
+  }
+
+  set scale(scale: number) {
+    const coeff = scale / this._$scale.getValue();
+
+    this.main.top = this.main.top * coeff;
+    this.main.bottom = this.main.bottom * coeff;
+    this.main.left = this.main.left * coeff;
+    this.main.right = this.main.right * coeff;
+    this.main.updateProjectionMatrix();
+
+    this._$scale.next(scale);
+  }
+
 
   get width() {
     return this.main.right - this.main.left;
   }
 
   set width(width: number) {
-    const half = this._scale * width / 2;
+    const half = this.scale * width / 2;
+
     this.main.left = -half;
     this.main.right = half;
+
     this.main.updateProjectionMatrix();
   }
 
@@ -24,22 +46,11 @@ export class CameraService extends AppService {
   }
 
   set height(height: number) {
-    const half = this._scale * height / 2;
+    const half = this.scale * height / 2;
+
     this.main.top = half;
     this.main.bottom = -half;
-    this.main.updateProjectionMatrix();
-  }
 
-  get scale() {
-    return this._scale;
-  }
-
-  set scale(scale: number) {
-    this.main.top = this.main.top * scale / this._scale;
-    this.main.bottom = this.main.bottom * scale / this._scale;
-    this.main.left = this.main.left * scale / this._scale;
-    this.main.right = this.main.right * scale / this._scale;
-    this._scale = scale;
     this.main.updateProjectionMatrix();
   }
 
@@ -59,6 +70,8 @@ export class CameraService extends AppService {
     instance.renderer.$onResize.subscribe({
       next: () => this._onResize(instance)
     });
+
+
   }
 
   private _onResize(instance: App) {

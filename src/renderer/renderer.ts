@@ -20,7 +20,7 @@ export class RendererService extends AppService {
   $onResize = new Observable<UIEvent>();
 
   get width(): number {
-    return window.innerWidth;
+    return this.canvas.offsetWidth;
   }
 
   set width(value: number) {
@@ -28,7 +28,7 @@ export class RendererService extends AppService {
   }
 
   get height(): number {
-    return window.innerHeight;
+    return this.canvas.offsetHeight;
   }
 
   set height(value: number) {
@@ -44,8 +44,10 @@ export class RendererService extends AppService {
       antialias: true,
     });
 
+    const initiallizeWidth = window.innerWidth;
+    const initiallizeHeight = window.innerHeight;
     this.renderer = new WebGLRenderer({ canvas: this.canvas, context: this.context });
-    this.renderer.setSize(this.width, this.height);
+    this.renderer.setSize(initiallizeWidth, initiallizeHeight);
     this.renderer.shadowMap.enabled = true;
 
     this.scene = new Scene();
