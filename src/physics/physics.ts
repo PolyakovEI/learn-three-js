@@ -5,9 +5,16 @@ import { AppService } from "../app-service";
 import { App } from "../app";
 import { TPC } from "./options";
 
+/** Символ для хранения id функции в очереди */
 const queueId = Symbol();
+
+/** Символ для хранения приоритета функции в очереди */
 const queuePriority = Symbol();
 
+/**
+ * Приоритеты выполнения функции из очереди
+ * Функции выполняются в порядке возврастания приоритета
+ */
 export enum QueuePriority {
     system = 0,
     first = 1,
@@ -15,25 +22,43 @@ export enum QueuePriority {
     third = 3
 };
 
+/**
+ * Интерфейс функции в очереди на выполнение
+ */
 export interface QueueCallback {
     (): void;
     [queueId]?: number;
     [queuePriority]?: QueuePriority;
 }
 
+/**
+ * Сервис для организации цикла физических вычислений
+ */
 export class PhysicsService extends AppService {
+    /** Проверка того, что цикл запущен */
     get isOn() {
         return this._physicsId !== null;
     }
 
+    /** id interval-а цикла расчетов */
     private _physicsId: NodeJS.Timeout = null;
 
+    /** Очередь функций на выполнение */
     private _queue: QueueCallback[] = [];
 
+    /** Счетчик для выставления идентификатора функции в очереди */
     private _queueCounter: number = 1;
 
+    /**
+     * Набор Subject-ов для синхронизации кастомных observable с циклом расчетов. Кастомные observale объекты синхронизируются с этими
+     * Subject-ами, ожидая эмита в них
+     */
     private _queueInitiator: { [k: string]: Subject<boolean> } = {};
 
+    /**
+     * Флаг итерации для того, чтобы отличить одну итерацию цикла от предыдущей. Используется для того, чтобы на одной и той же итерации
+     * одни и те же события не триггерились несколько раз
+     */
     private _iterationSign: boolean = false;
 
     protected onInit(instance: App) {
@@ -45,8 +70,15 @@ export class PhysicsService extends AppService {
         });
     }
 
+    /**
+     * Метод, добавляющий функцию в очередь на выполнение в цикл расчетов. При добавлении той же функции старая удаляется
+     * @param callback - функция, которая будет выполнятся в цикле расчетов
+     * @param priority - приоритет функции
+     * @returns id добавленной функции. Может быть использовано для того, чтобы позже удалить функцию из очереди
+     */
     addToQueue(callback: QueueCallback, priority: QueuePriority = QueuePriority.first): number {
         this.removeFromQueue(callback);
+
         callback[queueId] = this._queueCounter++;
         callback[queuePriority] = priority;
 
@@ -60,7 +92,11 @@ export class PhysicsService extends AppService {
         return callback[queueId];
     }
 
-    removeFromQueue(callback: QueueCallback | number) {
+    /**
+     * Удаление функции из очереди на выполнение в цикле расчетов
+     * @param callback - функция или id функции в очереди
+     */
+    removeFromQueue(callback: QueueCallback | number): void {
         const id = typeof callback === 'number' ? callback : callback[queueId];
         const index = this._queue.findIndex(item => item[queueId] === id);
         if (index !== -1) {
@@ -68,12 +104,20 @@ export class PhysicsService extends AppService {
         }
     }
 
+    /**
+     * Пайпа для синхронизации observable с циклом расчетов. Эмит observable откладывается до ближайшего выполнения цикла расчетов
+     * @param priority - приоритет выполнения. Определяет очередь выполнения observable внутри цикла
+     */
     syncSample<T>(priority: QueuePriority = QueuePriority.first): MonoTypeOperatorFunction<T> {
         return (source: Observable<T>) => source.pipe(
             sample(this._queueInitiator[priority]),
         )
     }
 
+    /**
+     * Пайпа для синхронизации observable с циклом расчетов. Последний эмит повторяется с каждым выполнением цикла расчетов
+     * @param priority - приоритет выполнения. Определяет очередь выполнения observable внутри цикла
+     */
     syncLatest<T>(priority: QueuePriority = QueuePriority.first): MonoTypeOperatorFunction<T> {
         return (source: Observable<T>) => combineLatest([
             source,
@@ -84,14 +128,23 @@ export class PhysicsService extends AppService {
         );
     }
 
+    /**
+     * Метод для запуска цикла отрисовки
+     */
     start() {
         this._physicsId = setInterval(() => this._physics(), TPC);
     }
 
+    /**
+     * Метод для остановки цикла отрисовки
+     */
     stop() {
         clearInterval(this._physicsId);
     }
 
+    /**
+     * Главный метод для выполнения физического расчета, вызывается каждые CPT миллисекунд
+     */
     private _physics() {
         this._iterationSign = !this._iterationSign;
         this._queue.forEach(item => item());
