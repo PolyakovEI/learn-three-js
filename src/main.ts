@@ -96,7 +96,9 @@ app.keyboard.keys.anyOff('q', 'w').pressed.pipe(throttleTime(500)).subscribe(eve
 app.mouse.key.left.down.subscribe(event => console.log('down'));
 app.mouse.key.left.pressed.subscribe(event => console.log('pressed'));
 
-app.physics.syncLatest(app.mouse.move).subscribe(event => {
+app.mouse.move.pipe(
+  app.physics.syncLatest()
+).subscribe(event => {
   // sphere.position.set(event.world.position.x, event.world.position.y, 0);
   const dx = event.world.position.x - sphere.position.x;
   const dy = event.world.position.y - sphere.position.y;

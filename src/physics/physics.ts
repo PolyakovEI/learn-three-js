@@ -1,9 +1,9 @@
+import { Subject, Observable, combineLatest, MonoTypeOperatorFunction } from "rxjs";
+import { sample, map, distinctUntilChanged } from "rxjs/operators";
+
 import { AppService } from "../app-service";
 import { App } from "../app";
-import { app } from "../main";
 import { TPC } from "./options";
-import { Subject, Observable, combineLatest } from "rxjs";
-import { sample, map, switchMap, distinctUntilChanged } from "rxjs/operators";
 
 const queueId = Symbol();
 const queuePriority = Symbol();
@@ -32,14 +32,17 @@ export class PhysicsService extends AppService {
 
     private _queueCounter: number = 1;
 
-    private _queueInitiator: { [k: string]: Subject<number> } = Object.keys(QueuePriority).reduce((queueNotifier: any, priority) => {
-        queueNotifier[priority] = new Subject();
-        return queueNotifier;
-    }, {});
+    private _queueInitiator: { [k: string]: Subject<boolean> } = {};
 
-    private _iterationId: number = 0;
+    private _iterationSign: boolean = false;
 
     protected onInit(instance: App) {
+        Object.keys(QueuePriority).forEach((priority: any) => {
+            this._queueInitiator[priority] = new Subject();
+            this.addToQueue(() => {
+                this._queueInitiator[priority].next(this._iterationSign);
+            });
+        });
     }
 
     addToQueue(callback: QueueCallback, priority: QueuePriority = QueuePriority.first): number {
@@ -65,16 +68,15 @@ export class PhysicsService extends AppService {
         }
     }
 
-    // @TODO весь этот sync плохо реализован!
-    syncSample<T>(callbackObservable: Observable<T>, priority: QueuePriority = QueuePriority.first): Observable<T> {
-        return callbackObservable.pipe(
+    syncSample<T>(priority: QueuePriority = QueuePriority.first): MonoTypeOperatorFunction<T> {
+        return (source: Observable<T>) => source.pipe(
             sample(this._queueInitiator[priority]),
-        );
+        )
     }
 
-    syncLatest<T>(callbackObservable: Observable<T>, priority: QueuePriority = QueuePriority.first): Observable<T> {
-        return combineLatest([
-            this.syncSample(callbackObservable, priority),
+    syncLatest<T>(priority: QueuePriority = QueuePriority.first): MonoTypeOperatorFunction<T> {
+        return (source: Observable<T>) => combineLatest([
+            source,
             this._queueInitiator[priority]
         ]).pipe(
             distinctUntilChanged((f, s) => f[1] === s[1]),
@@ -91,14 +93,8 @@ export class PhysicsService extends AppService {
     }
 
     private _physics() {
-        this._iterationId++;
-        // @TODO починить типизацию приоритетов
-        Object.keys(QueuePriority).forEach((priority: any) => {
-            this._queueInitiator[priority].next(this._iterationId);
-            this._queue
-                .filter(item => item[queuePriority] === priority)
-                .forEach(item => item());
-        });
+        this._iterationSign = !this._iterationSign;
+        this._queue.forEach(item => item());
     }
 
 }
