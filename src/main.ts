@@ -1,10 +1,10 @@
 import './style.css';
 import { Mesh, MeshStandardMaterial, PointLight, SphereGeometry, Vector2, Vector3 } from 'three';
-import { tap, throttleTime } from 'rxjs/operators';
-import { combineLatest } from 'rxjs';
+import { throttleTime } from 'rxjs/operators';
 
 import { App } from "./app";
 import { dt } from './physics/options';
+import { AppMouseEvent } from './controller/mouse';
 
 export const app = new App();
 
@@ -96,9 +96,7 @@ app.keyboard.keys.anyOff('q', 'w').pressed.pipe(throttleTime(500)).subscribe(eve
 app.mouse.key.left.down.subscribe(event => console.log('down'));
 app.mouse.key.left.pressed.subscribe(event => console.log('pressed'));
 
-app.mouse.move.pipe(
-  app.physics.syncLatest()
-).subscribe(event => {
+const follow = (event: AppMouseEvent) => {
   // sphere.position.set(event.world.position.x, event.world.position.y, 0);
   const dx = event.world.position.x - sphere.position.x;
   const dy = event.world.position.y - sphere.position.y;
@@ -108,6 +106,23 @@ app.mouse.move.pipe(
   sphere.position.add(d);
 
   // sphere.lookAt(new Vector3(event.world.position.x, event.world.position.y, 0));
-});
+}
+
+let isFollow: any = null;
+app.keyboard.keys.f.down.subscribe(_ => {
+  if (isFollow) {
+    isFollow.unsubscribe();
+    isFollow = null;
+  } else {
+    isFollow = app.mouse.move.pipe(
+      app.physics.syncLatest()
+    ).subscribe(follow);
+  }
+  
+})
+
+app.physics.toggleToQueueOn(app.keyboard.keys.f.down, () => {
+  console.log('Hello');
+}).subscribe();
 
 app.start();

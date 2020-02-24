@@ -1,5 +1,5 @@
 import { Subject, Observable, combineLatest, MonoTypeOperatorFunction } from "rxjs";
-import { sample, map, distinctUntilChanged } from "rxjs/operators";
+import { sample, map, distinctUntilChanged, tap } from "rxjs/operators";
 
 import { AppService } from "../app-service";
 import { App } from "../app";
@@ -71,6 +71,14 @@ export class PhysicsService extends AppService {
     }
 
     /**
+     * Проверка того, что это функция находится в цикле
+     * @param callback - функция
+     */
+    isQueueFunction(callback: any) {
+        return Boolean(callback[queueId]);
+    }
+
+    /**
      * Метод, добавляющий функцию в очередь на выполнение в цикл расчетов. При добавлении той же функции старая удаляется
      * @param callback - функция, которая будет выполнятся в цикле расчетов
      * @param priority - приоритет функции
@@ -96,12 +104,36 @@ export class PhysicsService extends AppService {
      * Удаление функции из очереди на выполнение в цикле расчетов
      * @param callback - функция или id функции в очереди
      */
-    removeFromQueue(callback: QueueCallback | number): void {
+    removeFromQueue(callback: QueueCallback | number): boolean {
         const id = typeof callback === 'number' ? callback : callback[queueId];
         const index = this._queue.findIndex(item => item[queueId] === id);
         if (index !== -1) {
+            delete this._queue[index][queueId];
+            delete this._queue[index][queuePriority];
             this._queue.splice(index, 1);
+            return true;
         }
+        return false;
+    }
+
+    /**
+     * Добавление/удаление функции из очереди при возникновении события
+     * @param toggle - observable на событие
+     * @param callback - функция для добавления в очередь
+     * @param priority - приоритет функции
+     */
+    toggleToQueueOn(toggle: Observable<any>, callback: QueueCallback, priority: QueuePriority = QueuePriority.first) {
+        let inQueue = this.isQueueFunction(callback);
+        return toggle.pipe(
+            tap(_ => {
+                if (inQueue) {
+                    this.removeFromQueue(callback);
+                } else {
+                    this.addToQueue(callback, priority);
+                }
+                inQueue = !inQueue;
+            })
+        )
     }
 
     /**

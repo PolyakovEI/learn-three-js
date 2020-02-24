@@ -1,4 +1,4 @@
-import { filter, tap, share, pairwise, startWith, map } from "rxjs/operators";
+import { filter, tap, share, pairwise, startWith, map, shareReplay } from "rxjs/operators";
 import { Observable, fromEvent, Subject, combineLatest, MonoTypeOperatorFunction } from "rxjs";
 
 import { AppService } from "../app-service";
@@ -12,7 +12,7 @@ import { QueuePriority } from "../physics/physics";
  * Событие мыши в приложении
  * @TODO сделать pressed как в keyboard контроллере!
  */
-class AppMouseEvent {
+export class AppMouseEvent {
     /** Координаты мыши в рамках canvas */
     screen: {
         /** Координаты */
@@ -95,8 +95,15 @@ export class MouseService extends AppService {
     private _pressedKeyEvents: Map<MouseEvent['which'], MouseEvent> = new Map();
 
     onInit(instance: App) {
+        const move = <Observable<MouseEvent>> fromEvent(instance.renderer.canvas, 'mousemove').pipe(
+            startWith({ x: 0, y: 0 }),
+            shareReplay()
+        );
+        // подписываюсь на move, чтобы на момент подписания на this.move в нем уже было событие
+        move.subscribe();
+
         this.move = combineLatest([
-            <Observable<MouseEvent>> fromEvent(instance.renderer.canvas, 'mousemove'),
+            move,
             // при изменении масштаба камеры указатель мыши оказывается в другом месте в мире
             instance.camera.$onScale
         ])
