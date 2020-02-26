@@ -39,7 +39,11 @@ export class RendererService extends AppService {
   /** Id запроса на отрисовку */
   private _renderFrameId: number = null;
 
+  /** Контейнер для canvas элемента */
+  private _container: HTMLElement;
+
   protected onInit(instance: App) {
+    this._container = document.getElementById('canvas-container');
     this.canvas = document.createElement('canvas');
     this.canvas.oncontextmenu = () => false;
 
@@ -54,9 +58,7 @@ export class RendererService extends AppService {
     this.renderer.setSize(initiallizeWidth, initiallizeHeight);
     this.renderer.shadowMap.enabled = true;
 
-    
-
-    document.body.appendChild(this.renderer.domElement);
+    this._container.appendChild(this.renderer.domElement);
     this.$onResize = fromEvent<UIEvent>(window, 'resize');
     this.$onResize.subscribe({
       next: () => this._onResize()
@@ -91,6 +93,6 @@ export class RendererService extends AppService {
    * Метод обработки размера холста
    */
   private _onResize() {
-    this.renderer.setSize(this.canvas.offsetWidth, this.canvas.offsetHeight);
+    this.renderer.setSize(this._container.offsetWidth, this._container.offsetHeight);
   }
 }
