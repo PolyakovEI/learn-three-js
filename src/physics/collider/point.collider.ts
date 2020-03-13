@@ -1,13 +1,19 @@
-import { Vector3 } from "three";
+import { Vector3, Points, BufferGeometry, Object3D, Geometry, MeshBasicMaterial, Color } from "three";
 
-import { Collider } from "./collider";
+import { Collider, HELPER_COLOR } from "./collider";
 
 export class PointCollider extends Collider {
-    type: 'point';
+  type: 'point';
 
-    constructor(position: Vector3) {
-        super();
+  constructor(public position: Vector3) {
+    super();
+  }
 
-        this.position = position;
-    }
+  helper(color: Color = HELPER_COLOR): Object3D {
+    const geometry = new Geometry();
+
+    geometry.vertices.push(this.position);
+
+    return new Points(geometry, new MeshBasicMaterial({ color }));
+  }
 }

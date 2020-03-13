@@ -1,19 +1,24 @@
-import { Vector3 } from "three";
+import { Vector3, Box3, Sphere, Line3, Object3D, Mesh, Color, Geometry } from "three";
+
+export const HELPER_COLOR: Color = new Color(0x82DCAE);
 
 export interface CollideEvent {
     point: Vector3,
     targets: Collider[],
     source: Collider,
-    normal: Vector3,
-    deep: number,
+    normal?: Vector3,
+    deep?: number,
 }
 
 export type ColliderType = 'box' | 'circle' | 'line' | 'point';
 
+export type ColliderInstance = Box3 | Sphere | Line3 | Vector3;
+
 export abstract class Collider {
-    position: Vector3;
 
-    abstract type: ColliderType;
+  abstract readonly type: ColliderType;
 
-    onCollide: (event: CollideEvent) => void;
+  onCollide: (event: CollideEvent) => void;
+
+  abstract helper(): Object3D;
 }
