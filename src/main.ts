@@ -5,6 +5,7 @@ import { throttleTime } from 'rxjs/operators';
 import { App } from "./app";
 import { dt } from './physics/options';
 import { AppMouseEvent } from './controller/mouse';
+import { isPointOnLine } from './physics/collider/collide-resolver';
 
 export const app = new App();
 
@@ -14,6 +15,23 @@ export const app = new App();
 const sphereRadius = 3;
 const sphere = new Mesh(new SphereGeometry(sphereRadius, 30, 30), new MeshStandardMaterial({ color: 0xffffff }));
 app.world.scene.add(sphere);
+
+const pointRadius = 1;
+const p1 = new Mesh(new SphereGeometry(pointRadius, 30, 30), new MeshStandardMaterial({ color: 0xffffff }));
+const p2 = new Mesh(new SphereGeometry(pointRadius, 30, 30), new MeshStandardMaterial({ color: 0xffffff }));
+p1.position.set(10, 10, 0);
+p2.position.set(-10, 10, 0);
+app.world.scene.add(p1);
+app.world.scene.add(p2);
+
+const pointerRadius = 1;
+const pointerSphere = new Mesh(new SphereGeometry(pointerRadius, 30, 30), new MeshStandardMaterial({ color: 0xff0000 }));
+app.world.scene.add(pointerSphere);
+
+app.mouse.move.subscribe(event => {
+  pointerSphere.position.copy(event.world.position);
+  console.log(isPointOnLine(pointerSphere.position, p1.position, p2.position));
+});
 
 const light = new PointLight(0xffffff, 1, 500);
 light.position.set(0, 0, 100);
@@ -65,6 +83,7 @@ app.keyboard.keys.anyOff('a', 's', 'd', 'w').pressed.subscribe(events => {
     'w': () => direction.y += 1,
     's': () => direction.y -= 1,
   } as any;
+  console.log(events);
   Object.keys(events).forEach(key => reactions[key]());
   direction.normalize();
   direction.multiplyScalar(cameraSpeed);

@@ -84,6 +84,12 @@ export class KeyboardService extends AppService {
             ),
             pressed: this._$pressed.pipe(
               filter(events => keys.some(key => events[key])),
+              map(events => keys
+                .filter(key => events[key])
+                .reduce((filteredEvents, key) => {
+                  filteredEvents[key] = events[key];
+                  return filteredEvents;
+                }, {} as KeyMap))
             ),
           })),
           combination: ((...combination: string[]): KeyObservableTypes<KeyMap> => ({
