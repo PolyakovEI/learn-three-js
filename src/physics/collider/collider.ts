@@ -4,8 +4,6 @@ export const HELPER_COLOR: Color = new Color(0x82DCAE);
 
 export interface CollideEvent {
     point: Vector3,
-    targets: Collider[],
-    source: Collider,
     normal?: Vector3,
     deep?: number,
 }

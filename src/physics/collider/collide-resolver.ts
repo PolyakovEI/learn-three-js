@@ -3,7 +3,7 @@ import { CircleCollider } from "./circle.collider";
 import { LineCollider } from "./line.collider";
 import { PointCollider } from "./point.collider";
 import { Collider, ColliderType, CollideEvent } from "./collider";
-import { Vector3, Line3 } from "three";
+import { Vector3, Line3, Vector2 } from "three";
 
 export interface ColliderResolver {
   (collider1: Collider, collider2: Collider): CollideEvent
@@ -60,8 +60,6 @@ function LineToPoint(line: LineCollider, point: PointCollider): CollideEvent {
   if (positionParameter >= 0 && positionParameter <= 1) {
     return {
       point: point.position.clone(),
-      source: line,
-      targets: [point],
     }
   }
   return null;
@@ -70,8 +68,6 @@ function LineToPoint(line: LineCollider, point: PointCollider): CollideEvent {
 function PointToPoint(point1: PointCollider, point2: PointCollider): CollideEvent {
   return {
     point: point1.position.clone(),
-    source: point1,
-    targets: [point2],
   };
 }
 
@@ -98,6 +94,55 @@ export function isPointOnLine(point: Vector3, p1: Vector3, p2: Vector3) {
   // if (p1 == p2)
   //     return DESTINATION;
   // return BETWEEN;
+}
+
+interface AABBCheckParam {
+  position: Vector3 | Vector2,
+  sizes: Vector3 | Vector2,
+}
+
+interface AABBCheckResult {
+  distance: Vector2,
+  minDistance: Vector2,
+}
+
+export function checkAABBCollision(a: AABBCheckParam, b: AABBCheckParam): AABBCheckResult {
+  const reuslt = {
+    distance: new Vector2(Math.abs(a.position.x - b.position.x), 0),
+    minDistance: new Vector2(a.sizes.x + b.sizes.x, 0),
+  };
+  if (reuslt.distance.x < reuslt.minDistance.x) {
+    reuslt.distance.y = Math.abs(a.position.y - b.position.y);
+    reuslt.minDistance.y = a.sizes.y + b.sizes.y;
+    if (reuslt.distance.y < reuslt.minDistance.y) {
+      return reuslt;
+    }
+  }
+  return null;
+}
+
+interface AABBCheckSphereParam {
+  position: Vector3 | Vector2,
+  radius: number,
+}
+
+interface AABBCheckSphereResult {
+  distance: Vector2,
+  minDistance: number,
+}
+
+export function checkAABBSphereCollision(a: AABBCheckSphereParam, b: AABBCheckSphereParam): AABBCheckSphereResult {
+  const reuslt = {
+    distance: new Vector2(Math.abs(a.position.x - b.position.x), 0),
+    minDistance: a.radius + b.radius,
+  };
+  if (reuslt.distance.x < reuslt.minDistance) {
+    reuslt.distance.y = Math.abs(a.position.y - b.position.y);
+    if (reuslt.distance.y < reuslt.minDistance) {
+      return reuslt;
+    }
+  }
+  return null;
 }
 
 // export function checkAABBCollision(a: Collider, b: Collider): boolean {

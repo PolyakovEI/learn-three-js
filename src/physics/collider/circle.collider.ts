@@ -1,15 +1,22 @@
 import { Collider, HELPER_COLOR } from "./collider";
-import { Color, Object3D, Box3Helper, Geometry } from "three";
+import { Color, Object3D, Box3Helper, Mesh } from "three";
 
 export class CircleCollider extends Collider {
   type: 'circle';
 
-  constructor(public geometry: Geometry) {
+  get radius(): number {
+    return this.object.geometry.boundingSphere.radius;
+  };
+
+  constructor(public object: Mesh) {
     super();
-    geometry.computeBoundingBox();
+    object.geometry.computeBoundingSphere();
   }
 
   helper(color: Color = HELPER_COLOR): Object3D {
-    return new Box3Helper(this.geometry.boundingBox, color);
+    if (this.object.geometry.boundingBox === null) {
+      this.object.geometry.computeBoundingBox();
+    }
+    return new Box3Helper(this.object.geometry.boundingBox, color);
   }
 }
